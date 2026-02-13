@@ -54,6 +54,7 @@
           <label class="text-sm text-gray-400">Auto-refresh:</label>
           <select id="refreshInterval" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500">
             <option value="0">Off</option>
+            <option value="15000">15s</option>
             <option value="30000" selected>30s</option>
             <option value="60000">1m</option>
             <option value="300000">5m</option>
@@ -78,12 +79,7 @@
           Per App Statistics
         </button>
       </div>
-      <div id="appSelector" class="hidden">
-        <select id="appSelect" class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 min-w-[200px]">
-          <option value="">Select an app...</option>
-        </select>
-      </div>
-    </div>
+          </div>
 
     <!-- Total View Stats -->
     <div id="totalView">
@@ -104,7 +100,7 @@
 
         <div class="glass rounded-2xl p-6 card-gradient">
           <div class="flex items-center justify-between mb-4">
-            <span class="text-gray-400 text-sm font-medium">Bandwidth In</span>
+            <span class="text-gray-400 text-sm font-medium">Ingress (1min)</span>
             <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
               <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
@@ -112,12 +108,12 @@
             </div>
           </div>
           <div class="text-4xl font-bold stat-value" id="totalIngress">--</div>
-          <div class="text-gray-500 text-sm mt-2">Ingress bandwidth</div>
+          <div class="text-gray-500 text-sm mt-2">Bytes received (last minute)</div>
         </div>
 
         <div class="glass rounded-2xl p-6 card-gradient">
           <div class="flex items-center justify-between mb-4">
-            <span class="text-gray-400 text-sm font-medium">Bandwidth Out</span>
+            <span class="text-gray-400 text-sm font-medium">Egress (1min)</span>
             <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
               <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -125,7 +121,7 @@
             </div>
           </div>
           <div class="text-4xl font-bold stat-value" id="totalEgress">--</div>
-          <div class="text-gray-500 text-sm mt-2">Egress bandwidth</div>
+          <div class="text-gray-500 text-sm mt-2">Bytes sent (last minute)</div>
         </div>
       </div>
 
@@ -148,55 +144,17 @@
 
     <!-- Per App View -->
     <div id="appView" class="hidden">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="glass rounded-2xl p-6 card-gradient">
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-gray-400 text-sm font-medium">App Connections</span>
-            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-              <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-          </div>
-          <div class="text-4xl font-bold stat-value" id="appConnections">--</div>
-        </div>
-
-        <div class="glass rounded-2xl p-6 card-gradient">
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-gray-400 text-sm font-medium">App Ingress</span>
-            <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-              <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18" />
-              </svg>
-            </div>
-          </div>
-          <div class="text-4xl font-bold stat-value" id="appIngress">--</div>
-        </div>
-
-        <div class="glass rounded-2xl p-6 card-gradient">
-          <div class="flex items-center justify-between mb-4">
-            <span class="text-gray-400 text-sm font-medium">App Egress</span>
-            <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-              <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </div>
-          </div>
-          <div class="text-4xl font-bold stat-value" id="appEgress">--</div>
-        </div>
-      </div>
-
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div class="glass rounded-2xl p-6">
-          <h3 class="text-lg font-semibold mb-4">App Connections Over Time</h3>
-          <div class="h-64">
-            <canvas id="appConnectionsChart"></canvas>
+          <h3 class="text-lg font-semibold mb-4">Sessions by App Over Time</h3>
+          <div class="h-80">
+            <canvas id="appBandwidthChart"></canvas>
           </div>
         </div>
         <div class="glass rounded-2xl p-6">
-          <h3 class="text-lg font-semibold mb-4">App Bandwidth Over Time</h3>
-          <div class="h-64">
-            <canvas id="appBandwidthChart"></canvas>
+          <h3 class="text-lg font-semibold mb-4">Ingress by App Over Time</h3>
+          <div class="h-80">
+            <canvas id="appPacketsChart"></canvas>
           </div>
         </div>
       </div>
@@ -211,7 +169,7 @@
             <tr class="text-left text-gray-400 text-sm border-b border-gray-700">
               <th class="pb-3 font-medium">Name</th>
               <th class="pb-3 font-medium">Protocol</th>
-              <th class="pb-3 font-medium">Connections</th>
+              <th class="pb-3 font-medium">Sessions</th>
               <th class="pb-3 font-medium">Ingress</th>
               <th class="pb-3 font-medium">Egress</th>
               <th class="pb-3 font-medium">Status</th>
@@ -230,11 +188,12 @@
   <script>
     let currentData = null;
     let historyData = [];
+    let timeSeriesData = [];
     let refreshTimer = null;
     let connectionsChart = null;
     let bandwidthChart = null;
-    let appConnectionsChart = null;
     let appBandwidthChart = null;
+    let appConnectionsChart = null;
 
     function formatBytes(bytes) {
       if (bytes === 0) return '0 B';
@@ -258,7 +217,7 @@
         const response = await fetch('/api/latest');
         if (response.ok) {
           const result = await response.json();
-          return result;
+          return result.data || result;
         }
       } catch (e) {
         console.error('Error fetching latest:', e);
@@ -275,6 +234,19 @@
         }
       } catch (e) {
         console.error('Error fetching history:', e);
+      }
+      return [];
+    }
+
+    async function fetchTimeSeries() {
+      try {
+        const response = await fetch('/api/timeseries');
+        if (response.ok) {
+          const result = await response.json();
+          return result.data || [];
+        }
+      } catch (e) {
+        console.error('Error fetching timeseries:', e);
       }
       return [];
     }
@@ -300,7 +272,7 @@
         console.error('Error refreshing:', e);
       }
 
-      historyData = await fetchHistory();
+      timeSeriesData = await fetchTimeSeries();
       updateCharts();
 
       btn.disabled = false;
@@ -321,7 +293,6 @@
       document.getElementById('totalEgress').textContent = formatBytes(currentData.totals?.bytesEgress || 0);
 
       updateAppsTable();
-      updateAppSelector();
     }
 
     function updateAppsTable() {
@@ -331,25 +302,25 @@
         return;
       }
 
-      const analyticsMap = {};
-      (currentData.analytics || []).forEach(a => {
-        if (!analyticsMap[a.dimensions.appId]) {
-          analyticsMap[a.dimensions.appId] = { connections: 0, ingress: 0, egress: 0 };
-        }
-        analyticsMap[a.dimensions.appId].connections += a.uniq?.connections || 0;
-        analyticsMap[a.dimensions.appId].ingress += a.sum?.bytesIngress || 0;
-        analyticsMap[a.dimensions.appId].egress += a.sum?.bytesEgress || 0;
+      // Build session map from currentSessions (REST API - real connections)
+      const sessionMap = {};
+      (currentData.currentSessions || []).forEach(s => {
+        sessionMap[s.appID] = {
+          connections: s.connections || 0,
+          bytesIngress: s.bytesIngress || 0,
+          bytesEgress: s.bytesEgress || 0
+        };
       });
 
       tbody.innerHTML = currentData.apps.map(app => {
-        const stats = analyticsMap[app.id] || { connections: 0, ingress: 0, egress: 0 };
+        const stats = sessionMap[app.id] || { connections: 0, bytesIngress: 0, bytesEgress: 0 };
         return `
           <tr class="border-b border-gray-800 hover:bg-white/5 transition-colors">
             <td class="py-4 font-medium">${app.dns?.name || app.id}</td>
             <td class="py-4"><span class="px-2 py-1 bg-gray-800 rounded text-xs">${app.protocol}</span></td>
             <td class="py-4">${formatNumber(stats.connections)}</td>
-            <td class="py-4 text-green-400">${formatBytes(stats.ingress)}</td>
-            <td class="py-4 text-purple-400">${formatBytes(stats.egress)}</td>
+            <td class="py-4 text-green-400">${formatBytes(stats.bytesIngress)}</td>
+            <td class="py-4 text-purple-400">${formatBytes(stats.bytesEgress)}</td>
             <td class="py-4">
               <span class="flex items-center gap-2">
                 <span class="w-2 h-2 bg-green-400 rounded-full"></span>
@@ -359,18 +330,6 @@
           </tr>
         `;
       }).join('');
-    }
-
-    function updateAppSelector() {
-      const select = document.getElementById('appSelect');
-      if (!currentData?.apps) return;
-
-      const currentValue = select.value;
-      select.innerHTML = '<option value="">Select an app...</option>' + 
-        currentData.apps.map(app => 
-          `<option value="${app.id}">${app.dns?.name || app.id}</option>`
-        ).join('');
-      select.value = currentValue;
     }
 
     function getChartConfig() {
@@ -396,10 +355,16 @@
     }
 
     function updateCharts() {
-      const labels = historyData.map(d => d.timestamp.split('T')[0]).reverse();
-      const connectionsData = historyData.map(d => d.totals?.connections || 0).reverse();
-      const ingressData = historyData.map(d => (d.totals?.bytesIngress || 0) / (1024 * 1024)).reverse();
-      const egressData = historyData.map(d => (d.totals?.bytesEgress || 0) / (1024 * 1024)).reverse();
+      if (!timeSeriesData || timeSeriesData.length === 0) return;
+
+      // Format time labels (HH:MM:SS)
+      const labels = timeSeriesData.map(d => {
+        const date = new Date(d.timestamp);
+        return date.toLocaleTimeString();
+      });
+      const connectionsData = timeSeriesData.map(d => d.connections || 0);
+      const ingressData = timeSeriesData.map(d => (d.bytesIngress || 0) / (1024 * 1024)); // MB
+      const egressData = timeSeriesData.map(d => (d.bytesEgress || 0) / (1024 * 1024)); // MB
 
       if (connectionsChart) connectionsChart.destroy();
       if (bandwidthChart) bandwidthChart.destroy();
@@ -410,12 +375,13 @@
         data: {
           labels,
           datasets: [{
-            label: 'Connections',
+            label: 'Active Sessions',
             data: connectionsData,
             borderColor: '#00d4ff',
             backgroundColor: 'rgba(0, 212, 255, 0.1)',
             fill: true,
-            tension: 0.4
+            tension: 0.4,
+            pointRadius: 2
           }]
         },
         options: getChartConfig()
@@ -433,7 +399,8 @@
               borderColor: '#22c55e',
               backgroundColor: 'rgba(34, 197, 94, 0.1)',
               fill: true,
-              tension: 0.4
+              tension: 0.4,
+              pointRadius: 2
             },
             {
               label: 'Egress (MB)',
@@ -441,7 +408,8 @@
               borderColor: '#a855f7',
               backgroundColor: 'rgba(168, 85, 247, 0.1)',
               fill: true,
-              tension: 0.4
+              tension: 0.4,
+              pointRadius: 2
             }
           ]
         },
@@ -449,75 +417,86 @@
       });
     }
 
-    function updateAppCharts(appId) {
-      if (!appId || !historyData.length) return;
+    let appPacketsChart = null;
 
-      const appData = historyData.map(d => {
-        const appAnalytics = (d.analytics || []).filter(a => a.dimensions.appId === appId);
-        return {
-          date: d.timestamp.split('T')[0],
-          connections: appAnalytics.reduce((sum, a) => sum + (a.uniq?.connections || 0), 0),
-          ingress: appAnalytics.reduce((sum, a) => sum + (a.sum?.bytesIngress || 0), 0),
-          egress: appAnalytics.reduce((sum, a) => sum + (a.sum?.bytesEgress || 0), 0)
-        };
-      }).reverse();
+    function updateAllAppsCharts() {
+      if (!currentData?.apps || !timeSeriesData || timeSeriesData.length === 0) return;
 
-      const labels = appData.map(d => d.date);
-      const connectionsData = appData.map(d => d.connections);
-      const ingressData = appData.map(d => d.ingress / (1024 * 1024));
-      const egressData = appData.map(d => d.egress / (1024 * 1024));
+      // Build app name map
+      const appNameMap = {};
+      currentData.apps.forEach(app => {
+        appNameMap[app.id] = app.dns?.name || app.id.substring(0, 8);
+      });
 
-      const totalConnections = connectionsData.reduce((a, b) => a + b, 0);
-      const totalIngress = appData.reduce((sum, d) => sum + d.ingress, 0);
-      const totalEgress = appData.reduce((sum, d) => sum + d.egress, 0);
+      // Get unique app IDs from time series data
+      const appIds = new Set();
+      timeSeriesData.forEach(point => {
+        Object.keys(point.perApp || {}).forEach(appId => appIds.add(appId));
+      });
 
-      document.getElementById('appConnections').textContent = formatNumber(totalConnections);
-      document.getElementById('appIngress').textContent = formatBytes(totalIngress);
-      document.getElementById('appEgress').textContent = formatBytes(totalEgress);
+      // Format time labels
+      const labels = timeSeriesData.map(d => {
+        const date = new Date(d.timestamp);
+        return date.toLocaleTimeString();
+      });
+
+      // Colors for apps
+      const colors = [
+        '#00d4ff', '#22c55e', '#a855f7', '#f59e0b', '#ef4444',
+        '#06b6d4', '#84cc16', '#ec4899', '#f97316', '#6366f1'
+      ];
+
+      // Build datasets for connections chart
+      const connectionDatasets = [];
+      const bandwidthDatasets = [];
+      let colorIdx = 0;
+      
+      appIds.forEach(appId => {
+        const appName = appNameMap[appId] || appId.substring(0, 8);
+        const color = colors[colorIdx % colors.length];
+        
+        connectionDatasets.push({
+          label: appName,
+          data: timeSeriesData.map(d => d.perApp?.[appId]?.connections || 0),
+          borderColor: color,
+          backgroundColor: color + '20',
+          fill: false,
+          tension: 0.4,
+          pointRadius: 2
+        });
+
+        bandwidthDatasets.push({
+          label: appName + ' (In)',
+          data: timeSeriesData.map(d => (d.perApp?.[appId]?.bytesIngress || 0) / (1024 * 1024)),
+          borderColor: color,
+          backgroundColor: color + '20',
+          fill: false,
+          tension: 0.4,
+          pointRadius: 2
+        });
+
+        colorIdx++;
+      });
 
       if (appConnectionsChart) appConnectionsChart.destroy();
       if (appBandwidthChart) appBandwidthChart.destroy();
 
-      const ctx1 = document.getElementById('appConnectionsChart').getContext('2d');
+      const ctx1 = document.getElementById('appBandwidthChart').getContext('2d');
       appConnectionsChart = new Chart(ctx1, {
         type: 'line',
         data: {
           labels,
-          datasets: [{
-            label: 'Connections',
-            data: connectionsData,
-            borderColor: '#00d4ff',
-            backgroundColor: 'rgba(0, 212, 255, 0.1)',
-            fill: true,
-            tension: 0.4
-          }]
+          datasets: connectionDatasets
         },
         options: getChartConfig()
       });
 
-      const ctx2 = document.getElementById('appBandwidthChart').getContext('2d');
+      const ctx2 = document.getElementById('appPacketsChart').getContext('2d');
       appBandwidthChart = new Chart(ctx2, {
         type: 'line',
         data: {
           labels,
-          datasets: [
-            {
-              label: 'Ingress (MB)',
-              data: ingressData,
-              borderColor: '#22c55e',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              fill: true,
-              tension: 0.4
-            },
-            {
-              label: 'Egress (MB)',
-              data: egressData,
-              borderColor: '#a855f7',
-              backgroundColor: 'rgba(168, 85, 247, 0.1)',
-              fill: true,
-              tension: 0.4
-            }
-          ]
+          datasets: bandwidthDatasets
         },
         options: getChartConfig()
       });
@@ -537,7 +516,6 @@
     document.getElementById('totalViewBtn').addEventListener('click', () => {
       document.getElementById('totalView').classList.remove('hidden');
       document.getElementById('appView').classList.add('hidden');
-      document.getElementById('appSelector').classList.add('hidden');
       document.getElementById('totalViewBtn').classList.add('bg-gradient-to-r', 'from-cyan-500', 'to-purple-600', 'text-white');
       document.getElementById('totalViewBtn').classList.remove('text-gray-400');
       document.getElementById('appViewBtn').classList.remove('bg-gradient-to-r', 'from-cyan-500', 'to-purple-600', 'text-white');
@@ -547,23 +525,23 @@
     document.getElementById('appViewBtn').addEventListener('click', () => {
       document.getElementById('totalView').classList.add('hidden');
       document.getElementById('appView').classList.remove('hidden');
-      document.getElementById('appSelector').classList.remove('hidden');
       document.getElementById('appViewBtn').classList.add('bg-gradient-to-r', 'from-cyan-500', 'to-purple-600', 'text-white');
       document.getElementById('appViewBtn').classList.remove('text-gray-400');
       document.getElementById('totalViewBtn').classList.remove('bg-gradient-to-r', 'from-cyan-500', 'to-purple-600', 'text-white');
       document.getElementById('totalViewBtn').classList.add('text-gray-400');
-    });
-
-    document.getElementById('appSelect').addEventListener('change', (e) => {
-      updateAppCharts(e.target.value);
+      updateAllAppsCharts();
     });
 
     async function init() {
+      console.log('Initializing dashboard...');
       currentData = await fetchLatest();
-      historyData = await fetchHistory();
+      console.log('Latest data:', currentData);
+      timeSeriesData = await fetchTimeSeries();
+      console.log('Time series data:', timeSeriesData);
       updateUI();
       updateCharts();
       setupRefreshTimer();
+      console.log('Auto-refresh timer set up');
     }
 
     init();

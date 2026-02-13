@@ -2,6 +2,7 @@ export interface Env {
   ACCOUNT_ID: string;
   ZONE_ID: string;
   API_KEY: string;
+  AUTH_EMAIL: string;
   SPECTRUM_DATA: KVNamespace;
 }
 
@@ -19,28 +20,36 @@ interface SpectrumApp {
 
 interface SpectrumAnalytics {
   dimensions: {
-    appId: string;
+    applicationTag: string;
     coloName: string;
     date: string;
+    outcome: string;
   };
   sum: {
-    bytesIngress: number;
-    bytesEgress: number;
+    bits: number;
+    packets: number;
   };
-  count: number;
-  uniq: {
-    connections: number;
-  };
+}
+
+interface CurrentSession {
+  appID: string;
+  bytesEgress: number;
+  bytesIngress: number;
+  connections: number;
+  durationAvg: number;
 }
 
 interface StoredData {
   timestamp: string;
   apps: SpectrumApp[];
   analytics: SpectrumAnalytics[];
+  currentSessions: CurrentSession[];
   totals: {
+    bits: number;
+    packets: number;
+    connections: number;
     bytesIngress: number;
     bytesEgress: number;
-    connections: number;
   };
 }
 
@@ -51,44 +60,47 @@ const CORS_HEADERS = {
 };
 
 async function fetchSpectrumApps(env: Env): Promise<SpectrumApp[]> {
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/zones/${env.ZONE_ID}/spectrum/apps`,
-    {
-      headers: {
-        'Authorization': `Bearer ${env.API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-  const data = await response.json() as { success: boolean; result: SpectrumApp[] };
+  const url = `https://api.cloudflare.com/client/v4/zones/${env.ZONE_ID}/spectrum/apps`;
+  const response = await fetch(url, {
+    headers: {
+      'X-Auth-Key': env.API_KEY,
+      'X-Auth-Email': env.AUTH_EMAIL,
+      'Content-Type': 'application/json',
+    },
+  });
+  const text = await response.text();
+  let data: { success: boolean; result: SpectrumApp[]; errors?: Array<{message: string; code?: number}> };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`Failed to parse response: ${text.substring(0, 200)}`);
+  }
   if (!data.success) {
-    throw new Error('Failed to fetch Spectrum apps');
+    const errorMsg = data.errors?.map(e => `${e.message} (code: ${e.code})`).join(', ') || `Unknown error. Status: ${response.status}`;
+    throw new Error(`Spectrum API error: ${errorMsg}. URL: ${url}`);
   }
   return data.result || [];
 }
 
 async function fetchSpectrumAnalytics(env: Env, since: string, until: string): Promise<SpectrumAnalytics[]> {
   const query = `
-    query SpectrumAnalytics($accountTag: string!, $filter: ZoneSpectrumApplicationAnalyticsAdaptiveGroupsFilter_InputObject!) {
+    query SpectrumAnalytics($accountTag: string!, $filter: AccountSpectrumNetworkAnalyticsAdaptiveGroupsFilter_InputObject!) {
       viewer {
-        zones(filter: { zoneTag: $accountTag }) {
-          spectrumApplicationAnalyticsAdaptiveGroups(
+        accounts(filter: { accountTag: $accountTag }) {
+          spectrumNetworkAnalyticsAdaptiveGroups(
             filter: $filter
             limit: 10000
             orderBy: [date_ASC]
           ) {
             dimensions {
-              appId
+              applicationTag
               coloName
               date
+              outcome
             }
             sum {
-              bytesIngress
-              bytesEgress
-            }
-            count
-            uniq {
-              connections
+              bits
+              packets
             }
           }
         }
@@ -99,13 +111,14 @@ async function fetchSpectrumAnalytics(env: Env, since: string, until: string): P
   const response = await fetch('https://api.cloudflare.com/client/v4/graphql', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.API_KEY}`,
+      'X-Auth-Key': env.API_KEY,
+      'X-Auth-Email': env.AUTH_EMAIL,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       query,
       variables: {
-        accountTag: env.ZONE_ID,
+        accountTag: env.ACCOUNT_ID,
         filter: {
           date_geq: since,
           date_leq: until,
@@ -114,36 +127,127 @@ async function fetchSpectrumAnalytics(env: Env, since: string, until: string): P
     }),
   });
 
-  const data = await response.json() as {
+  const text = await response.text();
+  let data: {
     data?: {
       viewer?: {
-        zones?: Array<{
-          spectrumApplicationAnalyticsAdaptiveGroups?: SpectrumAnalytics[];
+        accounts?: Array<{
+          spectrumNetworkAnalyticsAdaptiveGroups?: SpectrumAnalytics[];
         }>;
       };
     };
+    errors?: Array<{message: string}>;
   };
+  
+  try {
+    data = JSON.parse(text);
+  } catch {
+    console.error('GraphQL parse error:', text.substring(0, 500));
+    return [];
+  }
 
-  return data.data?.viewer?.zones?.[0]?.spectrumApplicationAnalyticsAdaptiveGroups || [];
+  if (data.errors) {
+    console.error('GraphQL errors:', JSON.stringify(data.errors));
+  }
+
+  return data.data?.viewer?.accounts?.[0]?.spectrumNetworkAnalyticsAdaptiveGroups || [];
 }
 
-function calculateTotals(analytics: SpectrumAnalytics[]) {
-  return analytics.reduce(
+async function fetchCurrentSessions(env: Env): Promise<CurrentSession[]> {
+  const url = `https://api.cloudflare.com/client/v4/zones/${env.ZONE_ID}/spectrum/analytics/aggregate/current`;
+  const response = await fetch(url, {
+    headers: {
+      'X-Auth-Key': env.API_KEY,
+      'X-Auth-Email': env.AUTH_EMAIL,
+      'Content-Type': 'application/json',
+    },
+  });
+  const text = await response.text();
+  let data: { success: boolean; result: CurrentSession[]; errors?: Array<{message: string}> };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    console.error('Current sessions parse error:', text.substring(0, 500));
+    return [];
+  }
+  if (!data.success) {
+    console.error('Current sessions API error:', data.errors);
+    return [];
+  }
+  return data.result || [];
+}
+
+function calculateTotals(analytics: SpectrumAnalytics[], currentSessions: CurrentSession[]) {
+  const analyticsTotal = analytics.reduce(
     (acc, item) => ({
-      bytesIngress: acc.bytesIngress + (item.sum?.bytesIngress || 0),
-      bytesEgress: acc.bytesEgress + (item.sum?.bytesEgress || 0),
-      connections: acc.connections + (item.uniq?.connections || 0),
+      bits: acc.bits + (item.sum?.bits || 0),
+      packets: acc.packets + (item.sum?.packets || 0),
     }),
-    { bytesIngress: 0, bytesEgress: 0, connections: 0 }
+    { bits: 0, packets: 0 }
   );
+
+  const sessionTotal = currentSessions.reduce(
+    (acc, item) => ({
+      connections: acc.connections + (item.connections || 0),
+      bytesIngress: acc.bytesIngress + (item.bytesIngress || 0),
+      bytesEgress: acc.bytesEgress + (item.bytesEgress || 0),
+    }),
+    { connections: 0, bytesIngress: 0, bytesEgress: 0 }
+  );
+
+  return {
+    bits: analyticsTotal.bits,
+    packets: analyticsTotal.packets,
+    connections: sessionTotal.connections,
+    bytesIngress: sessionTotal.bytesIngress,
+    bytesEgress: sessionTotal.bytesEgress,
+  };
+}
+
+interface TimeSeriesPoint {
+  timestamp: string;
+  connections: number;
+  bytesIngress: number;
+  bytesEgress: number;
+  perApp: { [appId: string]: { connections: number; bytesIngress: number; bytesEgress: number } };
 }
 
 async function storeData(env: Env, data: StoredData): Promise<void> {
-  const key = `analytics_${data.timestamp.split('T')[0]}`;
-  await env.SPECTRUM_DATA.put(key, JSON.stringify(data), {
-    expirationTtl: 60 * 60 * 24 * 30, // 30 days TTL
-  });
+  // Store latest full data
   await env.SPECTRUM_DATA.put('latest', JSON.stringify(data));
+
+  // Store time series point for charts
+  const point: TimeSeriesPoint = {
+    timestamp: data.timestamp,
+    connections: data.totals.connections,
+    bytesIngress: data.totals.bytesIngress,
+    bytesEgress: data.totals.bytesEgress,
+    perApp: {}
+  };
+
+  // Add per-app data
+  (data.currentSessions || []).forEach(s => {
+    point.perApp[s.appID] = {
+      connections: s.connections,
+      bytesIngress: s.bytesIngress,
+      bytesEgress: s.bytesEgress
+    };
+  });
+
+  // Get existing time series and append new point
+  const timeSeriesKey = 'timeseries';
+  const existing = await env.SPECTRUM_DATA.get(timeSeriesKey);
+  let timeSeries: TimeSeriesPoint[] = existing ? JSON.parse(existing) : [];
+  
+  // Keep last 200 data points (about 50 min at 15s refresh)
+  timeSeries.push(point);
+  if (timeSeries.length > 200) {
+    timeSeries = timeSeries.slice(-200);
+  }
+
+  await env.SPECTRUM_DATA.put(timeSeriesKey, JSON.stringify(timeSeries), {
+    expirationTtl: 60 * 60 * 24, // 24 hours TTL
+  });
 }
 
 async function getHistoricalData(env: Env, days: number = 30): Promise<StoredData[]> {
@@ -176,16 +280,18 @@ async function handleApiRequest(request: Request, env: Env): Promise<Response> {
       const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const until = now.toISOString().split('T')[0];
 
-      const [apps, analytics] = await Promise.all([
+      const [apps, analytics, currentSessions] = await Promise.all([
         fetchSpectrumApps(env),
         fetchSpectrumAnalytics(env, since, until),
+        fetchCurrentSessions(env),
       ]);
 
-      const totals = calculateTotals(analytics);
+      const totals = calculateTotals(analytics, currentSessions);
       const data: StoredData = {
         timestamp: now.toISOString(),
         apps,
         analytics,
+        currentSessions,
         totals,
       };
 
@@ -217,9 +323,63 @@ async function handleApiRequest(request: Request, env: Env): Promise<Response> {
       });
     }
 
+    if (path === '/api/timeseries') {
+      const timeSeries = await env.SPECTRUM_DATA.get('timeseries');
+      return new Response(JSON.stringify({ success: true, data: timeSeries ? JSON.parse(timeSeries) : [] }), {
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+      });
+    }
+
     if (path === '/api/apps') {
       const apps = await fetchSpectrumApps(env);
       return new Response(JSON.stringify({ success: true, data: apps }), {
+        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+      });
+    }
+
+    if (path === '/api/debug-analytics') {
+      const now = new Date();
+      const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const until = now.toISOString().split('T')[0];
+      
+      const query = `
+        query SpectrumAnalytics($accountTag: string!, $filter: AccountSpectrumNetworkAnalyticsAdaptiveGroupsFilter_InputObject!) {
+          viewer {
+            accounts(filter: { accountTag: $accountTag }) {
+              spectrumNetworkAnalyticsAdaptiveGroups(
+                filter: $filter
+                limit: 100
+                orderBy: [date_ASC]
+              ) {
+                dimensions { applicationTag coloName date outcome }
+                sum { bits packets }
+              }
+            }
+          }
+        }
+      `;
+      
+      const response = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+        method: 'POST',
+        headers: {
+          'X-Auth-Key': env.API_KEY,
+          'X-Auth-Email': env.AUTH_EMAIL,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          variables: {
+            accountTag: env.ACCOUNT_ID,
+            filter: { date_geq: since, date_leq: until },
+          },
+        }),
+      });
+      
+      const rawResponse = await response.text();
+      return new Response(JSON.stringify({
+        request: { accountId: env.ACCOUNT_ID, since, until },
+        rawResponse: JSON.parse(rawResponse)
+      }, null, 2), {
         headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
       });
     }
@@ -254,16 +414,18 @@ export default {
     const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const until = now.toISOString().split('T')[0];
 
-    const [apps, analytics] = await Promise.all([
+    const [apps, analytics, currentSessions] = await Promise.all([
       fetchSpectrumApps(env),
       fetchSpectrumAnalytics(env, since, until),
+      fetchCurrentSessions(env),
     ]);
 
-    const totals = calculateTotals(analytics);
+    const totals = calculateTotals(analytics, currentSessions);
     const data: StoredData = {
       timestamp: now.toISOString(),
       apps,
       analytics,
+      currentSessions,
       totals,
     };
 
