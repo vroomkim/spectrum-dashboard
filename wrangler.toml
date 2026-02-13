@@ -1,0 +1,20 @@
+name = "spectrum-dashboard"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Non-sensitive environment variables can go here
+
+# KV namespace for storing historical data (30 days)
+[[kv_namespaces]]
+binding = "SPECTRUM_DATA"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# Secrets (set via wrangler secret put):
+# - ACCOUNT_ID
+# - ZONE_ID  
+# - API_KEY
+
+[assets]
+directory = "./public"
