@@ -15,6 +15,7 @@ preview_id = "9f5d258eea584b71a196523597254bd3"
 # - ACCOUNT_ID
 # - ZONE_ID  
 # - API_KEY
+# - AUTH_EMAIL
 
 [assets]
 directory = "./public"

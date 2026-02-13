@@ -187,7 +187,6 @@
 
   <script>
     let currentData = null;
-    let historyData = [];
     let timeSeriesData = [];
     let refreshTimer = null;
     let connectionsChart = null;
@@ -210,6 +209,12 @@
     function formatDate(dateStr) {
       const date = new Date(dateStr);
       return date.toLocaleString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
     async function fetchLatest() {
@@ -314,10 +319,12 @@
 
       tbody.innerHTML = currentData.apps.map(app => {
         const stats = sessionMap[app.id] || { connections: 0, bytesIngress: 0, bytesEgress: 0 };
+        const appName = escapeHtml(app.dns?.name || app.id);
+        const appProtocol = escapeHtml(app.protocol);
         return `
           <tr class="border-b border-gray-800 hover:bg-white/5 transition-colors">
-            <td class="py-4 font-medium">${app.dns?.name || app.id}</td>
-            <td class="py-4"><span class="px-2 py-1 bg-gray-800 rounded text-xs">${app.protocol}</span></td>
+            <td class="py-4 font-medium">${appName}</td>
+            <td class="py-4"><span class="px-2 py-1 bg-gray-800 rounded text-xs">${appProtocol}</span></td>
             <td class="py-4">${formatNumber(stats.connections)}</td>
             <td class="py-4 text-green-400">${formatBytes(stats.bytesIngress)}</td>
             <td class="py-4 text-purple-400">${formatBytes(stats.bytesEgress)}</td>
@@ -416,8 +423,6 @@
         options: getChartConfig()
       });
     }
-
-    let appPacketsChart = null;
 
     function updateAllAppsCharts() {
       if (!currentData?.apps || !timeSeriesData || timeSeriesData.length === 0) return;

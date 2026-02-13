@@ -337,53 +337,6 @@ async function handleApiRequest(request: Request, env: Env): Promise<Response> {
       });
     }
 
-    if (path === '/api/debug-analytics') {
-      const now = new Date();
-      const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      const until = now.toISOString().split('T')[0];
-      
-      const query = `
-        query SpectrumAnalytics($accountTag: string!, $filter: AccountSpectrumNetworkAnalyticsAdaptiveGroupsFilter_InputObject!) {
-          viewer {
-            accounts(filter: { accountTag: $accountTag }) {
-              spectrumNetworkAnalyticsAdaptiveGroups(
-                filter: $filter
-                limit: 100
-                orderBy: [date_ASC]
-              ) {
-                dimensions { applicationTag coloName date outcome }
-                sum { bits packets }
-              }
-            }
-          }
-        }
-      `;
-      
-      const response = await fetch('https://api.cloudflare.com/client/v4/graphql', {
-        method: 'POST',
-        headers: {
-          'X-Auth-Key': env.API_KEY,
-          'X-Auth-Email': env.AUTH_EMAIL,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query,
-          variables: {
-            accountTag: env.ACCOUNT_ID,
-            filter: { date_geq: since, date_leq: until },
-          },
-        }),
-      });
-      
-      const rawResponse = await response.text();
-      return new Response(JSON.stringify({
-        request: { accountId: env.ACCOUNT_ID, since, until },
-        rawResponse: JSON.parse(rawResponse)
-      }, null, 2), {
-        headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-      });
-    }
-
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
